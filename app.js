@@ -1,6 +1,6 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 
 const app = express();
 
@@ -11,23 +11,25 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const { PORT = 3000 } = process.env;
 
 // Подключаем мангуст
-mongoose.connect("mongodb://localhost:27017/mestodb", {
+mongoose.connect('mongodb://localhost:27017/mestodb', {
   useNewUrlParser: true,
 });
 
 // Добавляем пользователя
 app.use((req, res, next) => {
-  req.user = {
-    _id: "63dc3e0cba12d760dd7e25d2"
-  };
+  req.user = { _id: '63dc3e0cba12d760dd7e25d2' };
 
   next();
 });
 
-app.use("/users", require("./routes/users"));
-app.use("/cards", require("./routes/cards"));
+app.use('/users', require('./routes/users'));
+app.use('/cards', require('./routes/cards'));
 
 // Подключаем порт
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
+});
+
+app.all('*', (req, res) => {
+  res.status(404).send({ message: 'Несуществтующий эндпоинт' });
 });
