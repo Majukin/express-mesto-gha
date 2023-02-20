@@ -30,6 +30,8 @@ app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
 });
 
+const NOT_FOUND = 404;
+
 app.all('*', (req, res) => {
-  res.status(404).send({ message: 'Несуществтующий эндпоинт' });
+  res.status(NOT_FOUND).send({ message: 'Несуществтующий эндпоинт' });
 });

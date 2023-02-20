@@ -7,14 +7,14 @@ const INTERNAL_SERVER_ERROR = 500;
 module.exports.getUsers = (req, res) => {
   User.find({})
     .then((users) => res.send(users))
-    .catch((err) => res.status(500).send({ message: err.message }));
+    .catch((err) => res.status(INTERNAL_SERVER_ERROR).send({ message: err.message }));
 };
 
 module.exports.getUser = (req, res) => {
   User.findById(req.params.userId)
     .then((user) => {
       if (!user) {
-        return res.status(404).send({ message: 'Пользователь не найден' });
+        return res.status(NOT_FOUND).send({ message: 'Пользователь не найден' });
       }
       return res.send(user);
     })
@@ -79,6 +79,6 @@ module.exports.updateAvatar = (req, res) => {
       if (err.name === 'ValidationError') {
         return res.status(BAD_REQUEST).send({ message: 'Переданы некорректные данные в метод обновления аватар' });
       }
-      return res.status(500).send({ message: err.message });
+      return res.status(INTERNAL_SERVER_ERROR).send({ message: err.message });
     });
 };
