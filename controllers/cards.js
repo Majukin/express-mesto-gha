@@ -1,7 +1,7 @@
 const Card = require('../models/card');
-const NotFoundError = require('../errors/not-found-err');
-const ForbiddenError = require('../errors/forbidden-err');
-const BadRequestError = require('../errors/bad-request-err');
+const NotFoundError = require('../errors/NotFoundError');
+const ForbiddenError = require('../errors/ForbiddenError');
+const ValidationError = require('../errors/ValidationError');
 
 module.exports.getCards = (req, res, next) => {
   Card.find({})
@@ -16,9 +16,10 @@ module.exports.createCard = (req, res, next) => {
     .then((card) => res.send(card))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return next(new BadRequestError('Переданы некорректные данные в метод создания карточки'));
+        next(new ValidationError('Некорректные данные в методе создания карточки'));
+      } else {
+        next(err);
       }
-      return next(err);
     });
 };
 
@@ -28,6 +29,7 @@ module.exports.deleteCard = (req, res, next) => {
       .then((card) => res.send(card))
       .catch(next);
   };
+
   Card.findById(req.params.cardId)
     .then((card) => {
       if (!card) next(new NotFoundError('Карточки не существует'));
@@ -47,7 +49,11 @@ module.exports.likeCard = (req, res, next) => {
   )
     .then((card) => {
       if (!card) {
-        return next(new NotFoundError('Карточка не найдена'));
+        return next(
+          new NotFoundError(
+            'Карточка не найдена',
+          ),
+        );
       }
       return res.send(card);
     })
@@ -62,7 +68,11 @@ module.exports.dislikeCard = (req, res, next) => {
   )
     .then((card) => {
       if (!card) {
-        return next(new NotFoundError('Карточка не найдена'));
+        return next(
+          new NotFoundError(
+            'Карточка не найдена',
+          ),
+        );
       }
       return res.send(card);
     })

@@ -1,9 +1,28 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const NotFoundError = require('../errors/NotFoundError');
+const ConflictError = require('../errors/ConflictError');
+const UnauthorizedError = require('../errors/UnauthorizedError');
+
 const User = require('../models/user');
-const NotFoundError = require('../errors/not-found-err');
-const ConflictError = require('../errors/conflict-err');
-const BadRequestError = require('../errors/bad-request-err');
+
+module.exports.createUser = (req, res, next) => {
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+
+  bcrypt.hash(password, 10).then((hash) => {
+    User.create({
+      name, about, avatar, email, password: hash,
+    })
+      .then((user) => res.send(user.toJSON()))
+      .catch((err) => {
+        if (err.code === 11000) {
+          next(new ConflictError('Пользователь уже существует'));
+        }
+      });
+  });
+};
 
 module.exports.getUsers = (req, res, next) => {
   User.find({})
@@ -22,92 +41,59 @@ module.exports.getUser = (req, res, next) => {
     .catch(next);
 };
 
-module.exports.createUser = (req, res, next) => {
-  const {
-    name, about, avatar, email, password,
-  } = req.body;
-
-  User.create({
-    name, about, avatar, email, password,
-  });
-  bcrypt.hash(password, 10)
-    .then((hash) => User.create({ password: hash }))
-    .then((user) => res.send(user))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return next(new BadRequestError('Переданы некорректные данные в метод создания пользователя'));
-      }
-      if (err.code === 11000) {
-        return next(new ConflictError('Пользователь уже существует'));
-      }
-      return next(err);
-    });
-};
-
 module.exports.updateProfile = (req, res, next) => {
   const { name, about } = req.body;
 
-  User.findByIdAndUpdate(req.user._id, { name, about }, { new: true, runValidators: true })
+  User.findByIdAndUpdate(req.user._id, { name, about }, { runValidators: true })
     .then((user) => res.send({
-      _id: user._id,
+      _id: [user._id],
       avatar: user.avatar,
       name,
       about,
     }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return next(new BadRequestError('Переданы некорректные данные в метод создания пользователя'));
-      }
-      if (err.code === 'CastError') {
-        return next(new ConflictError('Некорректный id пользователя'));
-      }
-      return next(err);
-    });
+    .catch(next);
 };
 
 module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
 
-  User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
+  User.findByIdAndUpdate(req.user._id, { avatar }, { runValidators: true })
     .then((user) => res.send({
       _id: user._id,
       avatar,
       name: user.name,
       about: user.about,
     }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return next(new BadRequestError('Переданы некорректные данные в метод обновления аватара'));
-      }
-      if (err.code === 'CastError') {
-        return next(new ConflictError('Некорректный id пользователя'));
-      }
-      return next(err);
-    });
+    .catch(next);
 };
 
 module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
-  return User.findUserByCredentials(email, password)
-    .then((user) => {
-      const token = jwt.sign(
-        { _id: user._id },
-        'super-strong-secret',
-        { expiresIn: '7d' },
-      );
-      res.send({ token });
+
+  User.findOne({ email, password })
+    .orFail()
+    .then(async (user) => {
+      const matched = await bcrypt.compare(password, user.password);
+      if (matched) {
+        const token = jwt.sign({ _id: user._id }, 'MY_SECRET_KEY');
+        res.cookie('jwt', token, {
+          maxAge: 3600,
+          httpOnly: true,
+        }).send(user.toJSON());
+      } else {
+        throw new UnauthorizedError('Неправильная почта или пароль');
+      }
     })
     .catch(next);
 };
 
 module.exports.getMe = (req, res, next) => {
-  const { _id } = req.user;
-  User.find({ _id })
+  User.findById(req.params.userId)
     .then((user) => {
       if (!user) {
-        throw new NotFoundError('Пользователь не найден');
+        next(new NotFoundError('Пользователь не найден'));
       }
-      res.send(user);
+      return res.send(user);
     })
     .catch(next);
 };

@@ -1,41 +1,40 @@
 const express = require('express');
+const { errors } = require('celebrate');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const NotFoundError = require('./errors/not-found-err');
-const HandlerError = require('./errors/handler-err');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+
+const router = require('./routes');
 
 const app = express();
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// Слушаем 3000 порт
 const { PORT = 3000 } = process.env;
 
-// Передаем контроллеры из users
-const { createUser, login } = require('./controllers/users');
-
-// Подключаем мангуст
-mongoose.connect('mongodb://localhost:27017/mestodb', {
+mongoose.connect('mongodb://127.0.0.1:27017/mestodb', {
   useNewUrlParser: true,
 });
 
-app.use('/users', require('./routes/users'));
-app.use('/cards', require('./routes/cards'));
+app.use(cookieParser());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Создание роута для логина и пароля
-app.post('/signup', createUser);
-app.post('/signin', login);
+app.use('/', router);
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Подключаем порт
+app.use(errors());
+
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = statusCode === 500 ? 'На сервере произошла ошибка' : err.message;
+  res.status(statusCode).send({ message });
+  next();
+});
+
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
 });
 
-// обработчик ошибки неправильного пути
-app.all('*', (req, res, next) => {
-  next(new NotFoundError('Несуществтующий эндпоинт'));
+app.all('*', (req, res) => {
+  res.status(404).send({ message: 'Несуществтующий эндпоинт' });
 });
-
-// обработчик ошибки сервера
-app.use(HandlerError);

@@ -1,23 +1,35 @@
 const router = require('express').Router();
-const { Joi, celebrate } = require('celebrate');
-const { validateLink } = require('../utils/validateLink');
-const { login, createUser } = require('../controllers/users');
+const { celebrate, Joi } = require('celebrate');
+const { reg } = require('../utils/urlRegExp');
 
-router.post('/signup', celebrate({
-  body: Joi.object().keys({
-    name: Joi.string().min(2).max(30),
-    about: Joi.string().min(2).max(30),
-    avatar: Joi.string().custom(validateLink),
-    email: Joi.string().required().email(),
-    password: Joi.string().required(),
-  }),
-}), createUser);
+const {
+  login,
+  createUser,
+} = require('../controllers/users');
 
-router.post('/signin', celebrate({
-  body: Joi.object().keys({
-    email: Joi.string().required().email(),
-    password: Joi.string().required(),
+router.post(
+  '/signin',
+  celebrate({
+    body: Joi.object().keys({
+      email: Joi.string().required().email(),
+      password: Joi.string().required(),
+    }),
   }),
-}), login);
+  login,
+);
+
+router.post(
+  '/signup',
+  celebrate({
+    body: Joi.object().keys({
+      name: Joi.string().min(2).max(30),
+      about: Joi.string().min(2).max(30),
+      avatar: Joi.string().pattern(reg),
+      email: Joi.string().required().email(),
+      password: Joi.string().required(),
+    }),
+  }),
+  createUser,
+);
 
 module.exports = router;
