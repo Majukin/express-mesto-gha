@@ -5,21 +5,28 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 
-const router = require('./routes');
+const auth = require('./middlewares/validatin');
+const NotFoundError = require('./errors/NotFoundError');
 
 const app = express();
 
 const { PORT = 3000 } = process.env;
 
-mongoose.connect('mongodb://127.0.0.1:27017/mestodb', {
-  useNewUrlParser: true,
-});
-
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use('/', router);
+mongoose.connect('mongodb://127.0.0.1:27017/mestodb', {
+  useNewUrlParser: true,
+});
+
+app.use('/', require('./routes/auth'));
+
+app.use(auth);
+
+app.use('/users', require('./routes/users'));
+app.use('/cards', require('./routes/cards'));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(errors());
@@ -35,6 +42,6 @@ app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
 });
 
-app.all('*', (req, res) => {
-  res.status(404).send({ message: 'Несуществтующий эндпоинт' });
+app.all('*', (req, res, next) => {
+  next(new NotFoundError('Несуществтующий эндпоинт'));
 });

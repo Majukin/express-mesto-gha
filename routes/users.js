@@ -21,6 +21,7 @@ router.get(
   }),
   getUser,
 );
+
 router.patch(
   '/me',
   celebrate({
@@ -31,6 +32,7 @@ router.patch(
   }),
   updateProfile,
 );
+
 router.patch(
   '/me/avatar',
   celebrate({
@@ -39,6 +41,7 @@ router.patch(
     }),
   }),
   updateAvatar,
+
 );
 
 module.exports = router;

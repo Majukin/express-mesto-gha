@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
-const validator = require('validator');
+const bcrypt = require('bcryptjs');
+const isUrl = require('validator/lib/isURL');
+const isEmail = require('validator/lib/isEmail');
+const UnauthorizedError = require('../errors/UnauthorizedError');
 
 const userSchema = new mongoose.Schema(
   {
@@ -20,17 +23,18 @@ const userSchema = new mongoose.Schema(
       default:
         'https://pictures.s3.yandex.net/resources/jacques-cousteau_1604399756.png',
       validate: {
-        validator: (link) => validator.isUrl(link),
-        message: 'Неправильный формат ссылки аватара',
+        validator: (link) => isUrl(link),
+        message: 'Некорректный формат ссылки на аватар',
       },
     },
     email: {
       type: String,
       unique: true,
       required: true,
+      dropDups: true,
       validate: {
-        validator: (value) => validator.isEmail(value),
-        message: 'Неправильный формат почты',
+        validator: (v) => isEmail(v),
+        message: 'Некорректный формат почты',
       },
     },
     password: {
@@ -39,14 +43,27 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
   },
+  { versionKey: false },
 );
 
-userSchema.methods.toJSON = function () {
-  const data = this.toObject();
-
-  delete data['password'];
-  delete data['__v'];
-  return data;
+userSchema.statics.findUserByCredentials = function (email, password) {
+  return this.findOne({ email }, { runValidators: true })
+    .select('+password')
+    .then((user) => {
+      if (!user) {
+        return Promise.reject(
+          new UnauthorizedError('Неправильные почта или пароль'),
+        );
+      }
+      return bcrypt.compare(password, user.password).then((matched) => {
+        if (!matched) {
+          return Promise.reject(
+            new UnauthorizedError('Неправильные почта или пароль'),
+          );
+        }
+        return user;
+      });
+    });
 };
 
-module.exports = mongoose.model('user', userSchema);
+module.exports = mongoose.model('User', userSchema);

@@ -2,7 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const NotFoundError = require('../errors/NotFoundError');
 const ConflictError = require('../errors/ConflictError');
-const UnauthorizedError = require('../errors/UnauthorizedError');
+
+const { MY_SECRET_KEY = 'MY_SECRET_KEY' } = process.env;
 
 const User = require('../models/user');
 
@@ -11,17 +12,24 @@ module.exports.createUser = (req, res, next) => {
     name, about, avatar, email, password,
   } = req.body;
 
-  bcrypt.hash(password, 10).then((hash) => {
-    User.create({
-      name, about, avatar, email, password: hash,
-    })
-      .then((user) => res.send(user.toJSON()))
-      .catch((err) => {
-        if (err.code === 11000) {
-          next(new ConflictError('Пользователь уже существует'));
-        }
-      });
+  const createUser = (hash) => User.create({
+    name, about, avatar, email, password: hash,
   });
+
+  bcrypt
+    .hash(password, 10)
+    .then((hash) => createUser(hash))
+    .then((user) => {
+      const { _id } = user;
+      res.send({
+        _id, name, about, avatar, email,
+      });
+    })
+    .catch((err) => {
+      if (err.code === 11000) {
+        next(new ConflictError('Пользователь уже существует'));
+      }
+    });
 };
 
 module.exports.getUsers = (req, res, next) => {
@@ -69,20 +77,14 @@ module.exports.updateAvatar = (req, res, next) => {
 
 module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
-
-  User.findOne({ email, password })
-    .orFail()
-    .then(async (user) => {
-      const matched = await bcrypt.compare(password, user.password);
-      if (matched) {
-        const token = jwt.sign({ _id: user._id }, 'MY_SECRET_KEY');
-        res.cookie('jwt', token, {
-          maxAge: 3600,
-          httpOnly: true,
-        }).send(user.toJSON());
-      } else {
-        throw new UnauthorizedError('Неправильная почта или пароль');
-      }
+  User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, MY_SECRET_KEY);
+      res.cookie('jwt', token, {
+        maxAge: 360,
+        httpOnly: true,
+      });
+      res.send({ token });
     })
     .catch(next);
 };
