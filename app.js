@@ -3,7 +3,6 @@ const { errors } = require('celebrate');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const path = require('path');
 
 const auth = require('./middlewares/validatin');
 const NotFoundError = require('./errors/NotFoundError');
@@ -27,7 +26,9 @@ app.use(auth);
 app.use('/users', require('./routes/users'));
 app.use('/cards', require('./routes/cards'));
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.all('*', (req, res, next) => {
+  next(new NotFoundError('Несуществтующий эндпоинт'));
+});
 
 app.use(errors());
 
@@ -40,8 +41,4 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
-});
-
-app.all('*', (req, res, next) => {
-  next(new NotFoundError('Несуществтующий эндпоинт'));
 });

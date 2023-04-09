@@ -29,6 +29,7 @@ module.exports.createUser = (req, res, next) => {
       if (err.code === 11000) {
         next(new ConflictError('Пользователь уже существует'));
       }
+      next(err);
     });
 };
 
@@ -43,6 +44,7 @@ module.exports.getUser = (req, res, next) => {
     .then((user) => {
       if (!user) {
         next(new NotFoundError('Пользователь не найден'));
+        return next();
       }
       return res.send(user);
     })
@@ -52,9 +54,9 @@ module.exports.getUser = (req, res, next) => {
 module.exports.updateProfile = (req, res, next) => {
   const { name, about } = req.body;
 
-  User.findByIdAndUpdate(req.user._id, { name, about }, { runValidators: true })
+  User.findByIdAndUpdate(req.user._id, { name, about }, { new: true, runValidators: true })
     .then((user) => res.send({
-      _id: [user._id],
+      _id: user._id,
       avatar: user.avatar,
       name,
       about,
@@ -65,7 +67,7 @@ module.exports.updateProfile = (req, res, next) => {
 module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
 
-  User.findByIdAndUpdate(req.user._id, { avatar }, { runValidators: true })
+  User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
     .then((user) => res.send({
       _id: user._id,
       avatar,
@@ -79,9 +81,9 @@ module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
   User.findUserByCredentials(email, password)
     .then((user) => {
-      const token = jwt.sign({ _id: user._id }, MY_SECRET_KEY);
+      const token = jwt.sign({ _id: user._id }, MY_SECRET_KEY, { expiresIn: '7d' });
       res.cookie('jwt', token, {
-        maxAge: 360,
+        maxAge: 3600,
         httpOnly: true,
       });
       res.send({ token });
@@ -90,10 +92,11 @@ module.exports.login = (req, res, next) => {
 };
 
 module.exports.getMe = (req, res, next) => {
-  User.findById(req.params.userId)
+  User.findById(req.user._id)
     .then((user) => {
       if (!user) {
         next(new NotFoundError('Пользователь не найден'));
+        return next();
       }
       return res.send(user);
     })
