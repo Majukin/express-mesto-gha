@@ -28,6 +28,7 @@ module.exports.createUser = (req, res, next) => {
     .catch((err) => {
       if (err.code === 11000) {
         next(new ConflictError('Пользователь уже существует'));
+        return;
       }
       next(err);
     });
@@ -44,9 +45,9 @@ module.exports.getUser = (req, res, next) => {
     .then((user) => {
       if (!user) {
         next(new NotFoundError('Пользователь не найден'));
-        return next();
+        return;
       }
-      return res.send(user);
+      res.send(user);
     })
     .catch(next);
 };
@@ -83,7 +84,7 @@ module.exports.login = (req, res, next) => {
     .then((user) => {
       const token = jwt.sign({ _id: user._id }, MY_SECRET_KEY, { expiresIn: '7d' });
       res.cookie('jwt', token, {
-        maxAge: 3600,
+        maxAge: 3600000,
         httpOnly: true,
       });
       res.send({ token });
@@ -96,9 +97,9 @@ module.exports.getMe = (req, res, next) => {
     .then((user) => {
       if (!user) {
         next(new NotFoundError('Пользователь не найден'));
-        return next();
+        return;
       }
-      return res.send(user);
+      res.send(user);
     })
     .catch(next);
 };
